@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIAKEU - Kwarran Pule</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .nav-link-active { background-color: rgba(255,255,255,0.2); border-left: 4px solid white; }
+        .input-minimal { @apply bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-orange-500 focus:bg-white transition-all; }
+        .tab-active { @apply border-b-2 border-orange-600 text-orange-600; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row">
+
+    <!-- Sidebar Navigation -->
+    <nav class="bg-gradient-to-b from-orange-800 to-red-900 text-white w-full md:w-64 flex-shrink-0 shadow-xl z-20">
+        <div class="p-6">
+            <h1 class="text-xl font-bold tracking-tight">KWARRAN PULE</h1>
+            <p class="text-[10px] opacity-60 uppercase tracking-widest mt-1">Sistem Keuangan</p>
+        </div>
+        
+        <div class="mt-4 flex flex-col gap-1 text-sm">
+            <button onclick="showPage('dashboard')" id="nav-dashboard" class="flex items-center gap-3 px-6 py-4 hover:bg-white/10 transition-all nav-link-active">
+                <i class="fas fa-chart-pie w-5"></i> Dashboard
+            </button>
+            <button onclick="showPage('manajemen')" id="nav-manajemen" class="flex items-center gap-3 px-6 py-4 hover:bg-white/10 transition-all text-left">
+                <i class="fas fa-edit w-5"></i> Input & Laporan
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-4 md:p-6">
+        
+        <!-- PAGE: DASHBOARD -->
+        <div id="page-dashboard" class="page-content">
+            <header class="mb-6">
+                <h2 class="text-xl font-bold text-gray-800">Ringkasan</h2>
+            </header>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Saldo Kas</p>
+                    <h3 id="dashTotalSaldo" class="text-2xl font-black text-gray-800 mt-1">Rp 0</h3>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 border-l-4 border-l-green-500">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Masuk</p>
+                    <h3 id="dashTotalMasuk" class="text-2xl font-black text-green-600 mt-1">Rp 0</h3>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 border-l-4 border-l-red-500">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Keluar</p>
+                    <h3 id="dashTotalKeluar" class="text-2xl font-black text-red-600 mt-1">Rp 0</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE: MANAJEMEN -->
+        <div id="page-manajemen" class="page-content hidden">
+            <header class="mb-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                <h2 class="text-xl font-bold text-gray-800">Input & Laporan</h2>
+                <div class="flex items-center gap-2">
+                    <select id="yearFilter" onchange="updateLaporan()" class="bg-white border rounded-lg px-3 py-1.5 text-xs font-bold shadow-sm outline-none">
+                        <option value="2024">2024</option>
+                        <option value="2025" selected>2025</option>
+                        <option value="2026">2026</option>
+                    </select>
+                    <button onclick="downloadExcel()" class="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition">
+                        <i class="fas fa-download mr-1"></i> Excel
+                    </button>
+                </div>
+            </header>
+
+            <!-- Menu Input Minimalis (Tabbed) -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
+                <div class="flex border-b border-gray-100 bg-gray-50/50">
+                    <button onclick="toggleInputTab('masuk')" id="tab-masuk" class="px-6 py-3 text-xs font-bold uppercase tracking-tight tab-active transition-all">
+                        <i class="fas fa-arrow-down mr-2 text-green-500"></i> Setoran Gudep
+                    </button>
+                    <button onclick="toggleInputTab('keluar')" id="tab-keluar" class="px-6 py-3 text-xs font-bold uppercase tracking-tight text-gray-400 hover:text-gray-600 transition-all">
+                        <i class="fas fa-arrow-up mr-2 text-red-500"></i> Pengeluaran Kwarran
+                    </button>
+                </div>
+
+                <div class="p-4">
+                    <!-- Form Pemasukan -->
+                    <form id="form-masuk" onsubmit="handleInput(event, 'masuk')" class="flex flex-wrap gap-2 items-end">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">Waktu</label>
+                            <div class="flex gap-1">
+                                <select id="inMonth" class="input-minimal w-28"></select>
+                                <select id="inYear" class="input-minimal w-20"></select>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-1 flex-1 min-w-[150px]">
+                            <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">Sumber & Keterangan</label>
+                            <div class="flex gap-1">
+                                <input type="text" id="gudepName" required placeholder="Nama Gudep" class="input-minimal flex-1">
+                                <input type="text" id="incomeDesc" required placeholder="Ket/Th" class="input-minimal flex-1">
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-1 w-20">
+                            <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">Siswa</label>
+                            <input type="number" id="studentCount" required placeholder="Jml" class="input-minimal w-full">
+                        </div>
+                        <div class="flex flex-col gap-1 w-32">
+                            <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">Nominal</label>
+                            <input type="number" id="incomeAmount" required placeholder="Rp" class="input-minimal w-full font-bold">
+                        </div>
+                        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-green-700 h-[34px]">Simpan</button>
+                    </form>
+
+                    <!-- Form Pengeluaran -->
+                    <form id="form-keluar" onsubmit="handleInput(event, 'keluar')" class="hidden flex flex-wrap gap-2 items-end">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">Waktu</label>
+                            <div class="flex gap-1">
+                                <select id="outMonth" class="input-minimal w-28"></select>
+                                <select id="outYear" class="input-minimal w-20"></select>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-1 flex-1 min-w-[150px]">
+                            <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">Kategori & Uraian</label>
+                            <div class="flex gap-1">
+                                <input type="text" id="expenseCat" required placeholder="Bidang/Kat" class="input-minimal flex-1">
+                                <input type="text" id="expenseDesc" required placeholder="Uraian Kegiatan" class="input-minimal flex-1">
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-1 w-40">
+                            <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">Nominal</label>
+                            <input type="number" id="expenseAmount" required placeholder="Rp" class="input-minimal w-full font-bold">
+                        </div>
+                        <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-700 h-[34px]">Catat</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tabel Laporan -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50 text-[10px] text-gray-400 uppercase font-black tracking-widest border-b">
+                            <tr>
+                                <th class="p-3">Bulan</th>
+                                <th class="p-3">Sumber / Unit</th>
+                                <th class="p-3 text-center">Siswa</th>
+                                <th class="p-3">Kategori</th>
+                                <th class="p-3 text-right">Debit</th>
+                                <th class="p-3 text-right">Kredit</th>
+                                <th class="p-3 text-right">Saldo</th>
+                                <th class="p-3 text-center"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="text-[11px] text-gray-600"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Simple Alert -->
+    <div id="modalAlert" class="fixed bottom-4 right-4 hidden animate-bounce z-50">
+        <div class="bg-gray-800 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3">
+            <i id="alertIcon" class="fas fa-check-circle text-green-400"></i>
+            <span id="alertMsg" class="text-xs font-bold tracking-wide">Data tersimpan!</span>
+        </div>
+    </div>
+
+    <script>
+        let transactions = JSON.parse(localStorage.getItem('kwarran_pule_v6_tx')) || [];
+        const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+        const years = [2024, 2025, 2026, 2027];
+
+        function initSelects() {
+            const mSelects = ['inMonth', 'outMonth'];
+            const ySelects = ['inYear', 'outYear'];
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+
+            mSelects.forEach(id => {
+                const el = document.getElementById(id);
+                months.forEach((m, i) => {
+                    const opt = new Option(m, i);
+                    if(i === currentMonth) opt.selected = true;
+                    el.add(opt);
+                });
+            });
+
+            ySelects.forEach(id => {
+                const el = document.getElementById(id);
+                years.forEach(y => {
+                    const opt = new Option(y, y);
+                    if(y === currentYear) opt.selected = true;
+                    el.add(opt);
+                });
+            });
+        }
+
+        function toggleInputTab(type) {
+            document.getElementById('form-masuk').classList.toggle('hidden', type !== 'masuk');
+            document.getElementById('form-keluar').classList.toggle('hidden', type !== 'keluar');
+            document.getElementById('tab-masuk').className = `px-6 py-3 text-xs font-bold uppercase tracking-tight transition-all ${type === 'masuk' ? 'tab-active' : 'text-gray-400'}`;
+            document.getElementById('tab-keluar').className = `px-6 py-3 text-xs font-bold uppercase tracking-tight transition-all ${type === 'keluar' ? 'tab-active' : 'text-gray-400'}`;
+        }
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('nav-link-active'));
+            document.getElementById(`page-${pageId}`).classList.remove('hidden');
+            document.getElementById(`nav-${pageId}`).classList.add('nav-link-active');
+            if(pageId === 'dashboard') updateDashboard();
+            if(pageId === 'manajemen') updateLaporan();
+        }
+
+        function handleInput(e, type) {
+            e.preventDefault();
+            const month = parseInt(document.getElementById(type === 'masuk' ? 'inMonth' : 'outMonth').value);
+            const year = parseInt(document.getElementById(type === 'masuk' ? 'inYear' : 'outYear').value);
+            
+            let newTx = {
+                id: Date.now(),
+                month: month,
+                year: year,
+                type: type,
+                students: null
+            };
+
+            if (type === 'masuk') {
+                newTx.source = document.getElementById('gudepName').value;
+                newTx.category = "Iuran";
+                newTx.desc = document.getElementById('incomeDesc').value;
+                newTx.amount = parseFloat(document.getElementById('incomeAmount').value);
+                newTx.students = parseInt(document.getElementById('studentCount').value) || 0;
+            } else {
+                newTx.source = "Kas Kwarran";
+                newTx.category = document.getElementById('expenseCat').value;
+                newTx.desc = document.getElementById('expenseDesc').value;
+                newTx.amount = parseFloat(document.getElementById('expenseAmount').value);
+            }
+
+            transactions.push(newTx);
+            saveData();
+            e.target.reset();
+            initSelects(); // Reset dropdowns to current
+            updateLaporan();
+            updateDashboard();
+            
+            const alertBox = document.getElementById('modalAlert');
+            alertBox.classList.remove('hidden');
+            setTimeout(() => alertBox.classList.add('hidden'), 2000);
+        }
+
+        function deleteTx(id) {
+            if(confirm('Hapus data?')) {
+                transactions = transactions.filter(t => t.id !== id);
+                saveData();
+                updateLaporan();
+                updateDashboard();
+            }
+        }
+
+        function saveData() { localStorage.setItem('kwarran_pule_v6_tx', JSON.stringify(transactions)); }
+
+        function formatIDR(num) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
+        }
+
+        function updateDashboard() {
+            const totalMasuk = transactions.filter(t => t.type === 'masuk').reduce((acc, curr) => acc + curr.amount, 0);
+            const totalKeluar = transactions.filter(t => t.type === 'keluar').reduce((acc, curr) => acc + curr.amount, 0);
+            document.getElementById('dashTotalMasuk').innerText = formatIDR(totalMasuk);
+            document.getElementById('dashTotalKeluar').innerText = formatIDR(totalKeluar);
+            document.getElementById('dashTotalSaldo').innerText = formatIDR(totalMasuk - totalKeluar);
+        }
+
+        function updateLaporan() {
+            const selectedYear = parseInt(document.getElementById('yearFilter').value);
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = '';
+
+            let runningSaldo = 0;
+            const filtered = transactions
+                .filter(t => t.year === selectedYear)
+                .sort((a, b) => a.month - b.month || a.id - b.id);
+
+            if (filtered.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="8" class="p-10 text-center text-gray-300 italic">Data kosong</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(t => {
+                if (t.type === 'masuk') runningSaldo += t.amount;
+                else runningSaldo -= t.amount;
+
+                const row = document.createElement('tr');
+                row.className = "border-b border-gray-50 hover:bg-gray-50/50 transition-colors";
+                row.innerHTML = `
+                    <td class="p-3 font-semibold text-gray-400">${months[t.month].substring(0,3)}</td>
+                    <td class="p-3 font-bold text-gray-700">${t.source}<br><span class="text-[9px] font-normal text-gray-400 uppercase">${t.desc}</span></td>
+                    <td class="p-3 text-center text-gray-500 font-bold">${t.students || '-'}</td>
+                    <td class="p-3"><span class="text-[8px] font-bold uppercase bg-gray-100 px-2 py-0.5 rounded text-gray-400">${t.category}</span></td>
+                    <td class="p-3 text-right text-green-600 font-bold">${t.type === 'masuk' ? formatIDR(t.amount) : '-'}</td>
+                    <td class="p-3 text-right text-red-600 font-bold">${t.type === 'keluar' ? formatIDR(t.amount) : '-'}</td>
+                    <td class="p-3 text-right font-black text-gray-800 bg-gray-50/30">${formatIDR(runningSaldo)}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="deleteTx(${t.id})" class="text-gray-300 hover:text-red-500"><i class="fas fa-times-circle"></i></button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function downloadExcel() {
+            const selectedYear = document.getElementById('yearFilter').value;
+            const data = transactions.filter(t => t.year == selectedYear).map(t => ({
+                'Bulan': months[t.month], 'Sumber': t.source, 'Siswa': t.students || 0, 'Ket': t.desc, 'Masuk': t.type === 'masuk' ? t.amount : 0, 'Keluar': t.type === 'keluar' ? t.amount : 0
+            }));
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Keu");
+            XLSX.writeFile(wb, `Laporan_${selectedYear}.xlsx`);
+        }
+
+        window.onload = () => { initSelects(); updateDashboard(); };
+    </script>
+</body>
+</html>
