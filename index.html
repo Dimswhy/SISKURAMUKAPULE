@@ -3,334 +3,526 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SIAKEU - Kwarran Pule</title>
+    <title>Sistem Arsip Digital - RSIA IBI</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .nav-link-active { background-color: rgba(255,255,255,0.2); border-left: 4px solid white; }
-        .input-minimal { @apply bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-orange-500 focus:bg-white transition-all; }
-        .tab-active { @apply border-b-2 border-orange-600 text-orange-600; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        
+        .modal-active { display: flex !important; }
+        
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; padding: 0 !important; margin: 0 !important; }
+            .print-container { width: 210mm !important; margin: 0 auto !important; padding: 10mm !important; display: block !important; }
+            #detail-modal { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; display: block !important; background: white !important; }
+            .modal-content-wrapper { box-shadow: none !important; border: none !important; width: 100% !important; }
+            @page { size: A4; margin: 0; }
+        }
+
+        .disposisi-table { width: 100%; border-collapse: collapse; border: 2px solid black; }
+        .disposisi-table td { border: 1px solid black; padding: 10px; vertical-align: top; color: black; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        #toast { transition: all 0.3s ease; transform: translateY(100px); }
+        #toast.show { transform: translateY(0); }
+        
+        .loading-overlay {
+            position: fixed; inset: 0; background: rgba(255,255,255,0.7);
+            z-index: 9999; display: flex; align-items: center; justify-content: center;
+        }
     </style>
 </head>
-<body class="min-h-screen flex flex-col md:flex-row">
-
-    <!-- Sidebar Navigation -->
-    <nav class="bg-gradient-to-b from-orange-800 to-red-900 text-white w-full md:w-64 flex-shrink-0 shadow-xl z-20">
-        <div class="p-6">
-            <h1 class="text-xl font-bold tracking-tight">KWARRAN PULE</h1>
-            <p class="text-[10px] opacity-60 uppercase tracking-widest mt-1">Sistem Keuangan</p>
-        </div>
-        
-        <div class="mt-4 flex flex-col gap-1 text-sm">
-            <button onclick="showPage('dashboard')" id="nav-dashboard" class="flex items-center gap-3 px-6 py-4 hover:bg-white/10 transition-all nav-link-active">
-                <i class="fas fa-chart-pie w-5"></i> Dashboard
-            </button>
-            <button onclick="showPage('manajemen')" id="nav-manajemen" class="flex items-center gap-3 px-6 py-4 hover:bg-white/10 transition-all text-left">
-                <i class="fas fa-edit w-5"></i> Input & Laporan
-            </button>
-        </div>
-    </nav>
-
-    <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto p-4 md:p-6">
-        
-        <!-- PAGE: DASHBOARD -->
-        <div id="page-dashboard" class="page-content">
-            <header class="mb-6">
-                <h2 class="text-xl font-bold text-gray-800">Ringkasan</h2>
-            </header>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Saldo Kas</p>
-                    <h3 id="dashTotalSaldo" class="text-2xl font-black text-gray-800 mt-1">Rp 0,00</h3>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 border-l-4 border-l-green-500">
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Masuk</p>
-                    <h3 id="dashTotalMasuk" class="text-2xl font-black text-green-600 mt-1">Rp 0,00</h3>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 border-l-4 border-l-red-500">
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Keluar</p>
-                    <h3 id="dashTotalKeluar" class="text-2xl font-black text-red-600 mt-1">Rp 0,00</h3>
-                </div>
-            </div>
-        </div>
-
-        <!-- PAGE: MANAJEMEN -->
-        <div id="page-manajemen" class="page-content hidden">
-            <header class="mb-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                <h2 class="text-xl font-bold text-gray-800">Input & Laporan</h2>
-                <div class="flex items-center gap-2">
-                    <select id="yearFilter" onchange="updateLaporan()" class="bg-white border rounded-lg px-3 py-1.5 text-xs font-bold shadow-sm outline-none">
-                        <option value="2024">2024</option>
-                        <option value="2025" selected>2025</option>
-                        <option value="2026">2026</option>
-                    </select>
-                    <button onclick="downloadExcel()" class="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition">
-                        <i class="fas fa-download mr-1"></i> Excel
-                    </button>
-                </div>
-            </header>
-
-            <!-- Menu Input Minimalis (Tabbed) -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
-                <div class="flex border-b border-gray-100 bg-gray-50/50">
-                    <button onclick="toggleInputTab('masuk')" id="tab-masuk" class="px-6 py-3 text-xs font-bold uppercase tracking-tight tab-active transition-all">
-                        <i class="fas fa-arrow-down mr-2 text-green-500"></i> Setoran Gudep
-                    </button>
-                    <button onclick="toggleInputTab('keluar')" id="tab-keluar" class="px-6 py-3 text-xs font-bold uppercase tracking-tight text-gray-400 hover:text-gray-600 transition-all">
-                        <i class="fas fa-arrow-up mr-2 text-red-500"></i> Pengeluaran Kwarran
-                    </button>
-                </div>
-
-                <div class="p-4">
-                    <!-- Form Pemasukan -->
-                    <form id="form-masuk" onsubmit="handleInput(event, 'masuk')" class="flex flex-wrap gap-2 items-end">
-                        <div class="flex flex-col gap-1">
-                            <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">Waktu</label>
-                            <div class="flex gap-1">
-                                <select id="inMonth" class="input-minimal w-28"></select>
-                                <select id="inYear" class="input-minimal w-20"></select>
-                            </div>
-                        </div>
-                        <div class="flex flex-col gap-1 flex-1 min-w-[150px]">
-                            <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">Sumber & Keterangan</label>
-                            <div class="flex gap-1">
-                                <input type="text" id="gudepName" required placeholder="Nama Gudep" class="input-minimal flex-1">
-                                <input type="text" id="incomeDesc" required placeholder="Ket/Th" class="input-minimal flex-1">
-                            </div>
-                        </div>
-                        <div class="flex flex-col gap-1 w-20">
-                            <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">Siswa</label>
-                            <input type="number" id="studentCount" required placeholder="Jml" class="input-minimal w-full">
-                        </div>
-                        <div class="flex flex-col gap-1 w-32">
-                            <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">Nominal</label>
-                            <input type="number" id="incomeAmount" required placeholder="Rp" class="input-minimal w-full font-bold">
-                        </div>
-                        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-green-700 h-[34px]">Simpan</button>
-                    </form>
-
-                    <!-- Form Pengeluaran -->
-                    <form id="form-keluar" onsubmit="handleInput(event, 'keluar')" class="hidden flex flex-wrap gap-2 items-end">
-                        <div class="flex flex-col gap-1">
-                            <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">Waktu</label>
-                            <div class="flex gap-1">
-                                <select id="outMonth" class="input-minimal w-28"></select>
-                                <select id="outYear" class="input-minimal w-20"></select>
-                            </div>
-                        </div>
-                        <div class="flex flex-col gap-1 flex-1 min-w-[150px]">
-                            <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">Kategori & Uraian</label>
-                            <div class="flex gap-1">
-                                <input type="text" id="expenseCat" required placeholder="Bidang/Kat" class="input-minimal flex-1">
-                                <input type="text" id="expenseDesc" required placeholder="Uraian Kegiatan" class="input-minimal flex-1">
-                            </div>
-                        </div>
-                        <div class="flex flex-col gap-1 w-40">
-                            <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">Nominal</label>
-                            <input type="number" id="expenseAmount" required placeholder="Rp" class="input-minimal w-full font-bold">
-                        </div>
-                        <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-700 h-[34px]">Catat</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Tabel Laporan -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead class="bg-gray-50 text-[10px] text-gray-400 uppercase font-black tracking-widest border-b">
-                            <tr>
-                                <th class="p-3">Bulan</th>
-                                <th class="p-3">Sumber / Unit</th>
-                                <th class="p-3 text-center">Siswa</th>
-                                <th class="p-3">Kategori</th>
-                                <th class="p-3 text-right">Debit</th>
-                                <th class="p-3 text-right">Kredit</th>
-                                <th class="p-3 text-right">Saldo</th>
-                                <th class="p-3 text-center"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="tableBody" class="text-[11px] text-gray-600"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- Simple Alert -->
-    <div id="modalAlert" class="fixed bottom-4 right-4 hidden animate-bounce z-50">
-        <div class="bg-gray-800 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3">
-            <i id="alertIcon" class="fas fa-check-circle text-green-400"></i>
-            <span id="alertMsg" class="text-xs font-bold tracking-wide">Data tersimpan!</span>
+<body class="bg-slate-50 text-slate-900">
+    <div id="loading-screen" class="loading-overlay">
+        <div class="flex flex-col items-center gap-4">
+            <i data-lucide="loader-2" class="w-12 h-12 text-blue-600 animate-spin"></i>
+            <p class="font-bold text-slate-700">Menghubungkan ke Cloud...</p>
         </div>
     </div>
 
-    <script>
-        let transactions = JSON.parse(localStorage.getItem('kwarran_pule_v6_tx')) || [];
-        const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-        const years = [2024, 2025, 2026, 2027];
+    <div id="app" class="min-h-screen flex flex-col md:flex-row no-print">
+        <!-- Sidebar -->
+        <aside class="w-full md:w-64 bg-slate-900 text-white flex-shrink-0 shadow-xl z-20">
+            <div class="p-8">
+                <h1 class="text-2xl font-bold flex items-center gap-3">
+                    <div class="p-2 bg-blue-600 rounded-lg">
+                        <i data-lucide="cloud" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <span>ArsipKita</span>
+                </h1>
+                <p class="text-[10px] text-slate-400 mt-2 uppercase tracking-[0.2em] font-semibold">RSIA IBI SURABAYA</p>
+                <div class="mt-4 px-2 py-1 bg-blue-900/30 rounded border border-blue-500/30">
+                    <p class="text-[8px] text-blue-300 font-bold uppercase tracking-widest">Status Penyimpanan</p>
+                    <p class="text-[10px] text-white font-bold flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                        Cloud Aktif Permanen
+                    </p>
+                </div>
+            </div>
+            <nav class="mt-4 px-4 space-y-2">
+                <button onclick="switchTab('dashboard')" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition-all" data-tab="dashboard">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i> <span class="font-medium">Dashboard</span>
+                </button>
+                <div class="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Manajemen Surat</div>
+                <button onclick="switchTab('surat-masuk')" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-400 transition-all" data-tab="surat-masuk">
+                    <i data-lucide="mail" class="w-5 h-5"></i> <span>Surat Masuk</span>
+                </button>
+                <button onclick="switchTab('surat-keluar')" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-400 transition-all" data-tab="surat-keluar">
+                    <i data-lucide="send" class="w-5 h-5"></i> <span>Surat Keluar</span>
+                </button>
+                <div class="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Dokumentasi</div>
+                <button onclick="switchTab('sk')" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-400 transition-all" data-tab="sk">
+                    <i data-lucide="file-check" class="w-5 h-5"></i> <span>Surat Keputusan</span>
+                </button>
+                <button onclick="switchTab('notulen')" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-400 transition-all" data-tab="notulen">
+                    <i data-lucide="clipboard-list" class="w-5 h-5"></i> <span>Notulen Rapat</span>
+                </button>
+            </nav>
+            <div class="mt-auto p-8 opacity-50">
+                <p class="text-[10px]">User ID:</p>
+                <p id="user-display-id" class="text-[10px] font-mono break-all">-</p>
+            </div>
+        </aside>
 
-        function initSelects() {
-            const mSelects = ['inMonth', 'outMonth'];
-            const ySelects = ['inYear', 'outYear'];
-            const currentMonth = new Date().getMonth();
-            const currentYear = new Date().getFullYear();
+        <main class="flex-1 flex flex-col min-w-0">
+            <header class="h-20 bg-white border-b flex items-center justify-between px-8 sticky top-0 z-10 shadow-sm">
+                <div>
+                    <h2 id="page-title" class="text-xl font-bold text-slate-800">Dashboard</h2>
+                    <p id="current-date" class="text-xs text-slate-500 font-medium"></p>
+                </div>
+                <div class="flex items-center gap-6">
+                    <div class="hidden md:flex flex-col text-right">
+                        <span class="text-sm font-bold text-slate-700">Cloud Admin</span>
+                        <span class="text-[10px] text-blue-500 font-bold uppercase tracking-widest">Sinkronisasi Aman</span>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">CA</div>
+                </div>
+            </header>
 
-            mSelects.forEach(id => {
-                const el = document.getElementById(id);
-                months.forEach((m, i) => {
-                    const opt = new Option(m, i);
-                    if(i === currentMonth) opt.selected = true;
-                    el.add(opt);
-                });
-            });
+            <div id="content-area" class="p-8 overflow-y-auto w-full">
+                <!-- Dashboard Section -->
+                <div id="section-dashboard" class="section">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" id="stats-container"></div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div class="p-6 border-b flex justify-between items-center">
+                            <h3 class="font-bold text-slate-800">Aktivitas Cloud Terbaru</h3>
+                            <span class="text-[10px] bg-blue-50 px-2 py-1 rounded font-bold text-blue-600 uppercase tracking-tighter">Live Database</span>
+                        </div>
+                        <div class="overflow-x-auto"><table class="w-full text-left"><tbody id="dashboard-recent-body"></tbody></table></div>
+                    </div>
+                </div>
 
-            ySelects.forEach(id => {
-                const el = document.getElementById(id);
-                years.forEach(y => {
-                    const opt = new Option(y, y);
-                    if(y === currentYear) opt.selected = true;
-                    el.add(opt);
-                });
-            });
-        }
+                <!-- Table Section -->
+                <div id="section-table" class="section hidden">
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                        <div class="relative w-full md:w-96">
+                            <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
+                            <input type="text" id="table-search" onkeyup="filterTable()" class="block w-full pl-10 pr-4 py-2 bg-white border rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Cari data di cloud...">
+                        </div>
+                        <button onclick="openModal()" class="w-full md:w-auto bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all">
+                            <i data-lucide="plus" class="w-5 h-5"></i> Tambah Data Baru
+                        </button>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-slate-100">
+                                <thead class="bg-slate-50" id="table-headers"></thead>
+                                <tbody id="table-body" class="divide-y"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
 
-        function toggleInputTab(type) {
-            document.getElementById('form-masuk').classList.toggle('hidden', type !== 'masuk');
-            document.getElementById('form-keluar').classList.toggle('hidden', type !== 'keluar');
-            document.getElementById('tab-masuk').className = `px-6 py-3 text-xs font-bold uppercase tracking-tight transition-all ${type === 'masuk' ? 'tab-active' : 'text-gray-400'}`;
-            document.getElementById('tab-keluar').className = `px-6 py-3 text-xs font-bold uppercase tracking-tight transition-all ${type === 'keluar' ? 'tab-active' : 'text-gray-400'}`;
-        }
+    <!-- Modal Form -->
+    <div id="form-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] hidden items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col">
+            <div class="px-8 py-6 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="text-xl font-bold text-slate-800" id="modal-title">Form Data</h3>
+                <button onclick="closeModal()" class="p-2 hover:bg-white rounded-full"><i data-lucide="x" class="w-6 h-6 text-slate-400"></i></button>
+            </div>
+            <div class="p-8 overflow-y-auto max-h-[70vh]">
+                <form id="doc-form" class="space-y-4">
+                    <input type="hidden" id="form-edit-id">
+                    <div id="dynamic-form-fields" class="space-y-4"></div>
+                    <div class="pt-4 border-t">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">Lampiran Cloud (Gambar/PDF)</label>
+                        <input type="file" id="file-upload" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" accept="image/*,application/pdf">
+                        <p class="text-[10px] text-slate-400 mt-1" id="file-info">*File akan disimpan permanen di server cloud.</p>
+                    </div>
+                </form>
+            </div>
+            <div class="px-8 py-6 border-t bg-slate-50 flex justify-end gap-3">
+                <button onclick="closeModal()" class="px-6 py-2 text-slate-600 font-bold hover:text-slate-900 transition-all">Batal</button>
+                <button onclick="handleSave()" id="btn-save" class="px-8 py-2 bg-blue-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-all">
+                    <span>Simpan Permanen</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
-        function showPage(pageId) {
-            document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
-            document.querySelectorAll('nav button').forEach(b => b.classList.remove('nav-link-active'));
-            document.getElementById(`page-${pageId}`).classList.remove('hidden');
-            document.getElementById(`nav-${pageId}`).classList.add('nav-link-active');
-            if(pageId === 'dashboard') updateDashboard();
-            if(pageId === 'manajemen') updateLaporan();
-        }
+    <!-- Modal Detail -->
+    <div id="detail-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-0 md:p-4 overflow-y-auto">
+        <div class="bg-white rounded-none md:rounded-3xl w-full max-w-[210mm] shadow-2xl flex flex-col modal-content-wrapper min-h-screen md:min-h-0">
+            <div class="px-8 py-4 border-b bg-white flex justify-between items-center sticky top-0 z-10 no-print">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-blue-50 text-blue-600 rounded-lg"><i data-lucide="printer" class="w-5 h-5"></i></div>
+                    <h3 class="text-lg font-bold text-slate-800">Pratinjau Cloud</h3>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="window.print()" class="bg-slate-900 text-white px-5 py-2 rounded-xl flex items-center gap-2 font-bold text-sm hover:bg-black transition-all">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Cetak
+                    </button>
+                    <button onclick="closeDetailModal()" class="p-2 hover:bg-slate-100 rounded-full transition-all">
+                        <i data-lucide="x" class="w-6 h-6 text-slate-400"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="detail-content" class="bg-white print-container"></div>
+        </div>
+    </div>
 
-        function handleInput(e, type) {
-            e.preventDefault();
-            const month = parseInt(document.getElementById(type === 'masuk' ? 'inMonth' : 'outMonth').value);
-            const year = parseInt(document.getElementById(type === 'masuk' ? 'inYear' : 'outYear').value);
+    <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl text-sm font-bold hidden flex items-center gap-3">
+        <div id="toast-icon" class="p-1 rounded-full"><i data-lucide="check" class="w-4 h-4"></i></div>
+        <span id="toast-msg">Success</span>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Konfigurasi Firebase
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'arsipkita-app';
+
+        let currentUser = null;
+        let allData = [];
+        let currentTab = 'dashboard';
+
+        const config = {
+            'surat-masuk': { 
+                title: 'Surat Masuk', 
+                color: 'blue', 
+                icon: 'mail', 
+                headers: ['Agenda', 'Tgl Terima', 'Asal Surat', 'Perihal', 'File', 'Aksi'], 
+                fields: [
+                    { name: 'no_agenda', label: 'Nomor Agenda', type: 'text' }, 
+                    { name: 'tgl_terima', label: 'Tanggal Diterima', type: 'date' }, 
+                    { name: 'terima_dari', label: 'Asal Surat', type: 'text' }, 
+                    { name: 'no_surat', label: 'Nomor Surat', type: 'text' }, 
+                    { name: 'perihal', label: 'Perihal', type: 'text' }, 
+                    { name: 'ditujukan', label: 'Diteruskan Ke', type: 'text' }, 
+                    { name: 'disposisi', label: 'Disposisi', type: 'textarea' }
+                ] 
+            },
+            'surat-keluar': { title: 'Surat Keluar', color: 'emerald', icon: 'send', headers: ['Tgl Surat', 'No. Surat', 'Tujuan', 'Perihal', 'Aksi'], fields: [{ name: 'tgl_surat', label: 'Tanggal Surat', type: 'date' }, { name: 'no_surat', label: 'Nomor Surat', type: 'text' }, { name: 'kepada', label: 'Tujuan', type: 'text' }, { name: 'perihal', label: 'Perihal', type: 'text' }] },
+            'sk': { title: 'Surat Keputusan', color: 'purple', icon: 'file-check', headers: ['No. SK', 'Tentang', 'Tanggal', 'Aksi'], fields: [{ name: 'no_sk', label: 'Nomor SK', type: 'text' }, { name: 'tentang', label: 'Tentang', type: 'text' }, { name: 'tanggal', label: 'Tanggal SK', type: 'date' }] },
+            'notulen': { title: 'Notulen Rapat', color: 'amber', icon: 'clipboard-list', headers: ['Agenda', 'Tanggal', 'Pimpinan', 'Aksi'], fields: [{ name: 'agenda', label: 'Agenda Rapat', type: 'text' }, { name: 'tanggal', label: 'Tanggal Rapat', type: 'date' }, { name: 'pimpinan', label: 'Pimpinan Rapat', type: 'text' }, { name: 'hasil', label: 'Hasil Ringkasan', type: 'textarea' }] }
+        };
+
+        // --- INISIALISASI APLIKASI ---
+        const initApp = async () => {
+            document.getElementById('loading-screen').classList.remove('hidden');
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Kesalahan Autentikasi:", err);
+                showToast("Gagal autentikasi cloud", "error");
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('user-display-id').innerText = user.uid;
+                setupDataListener();
+            }
+        });
+
+        // --- PENDENGAR DATA ---
+        const setupDataListener = () => {
+            if (!currentUser) return;
             
-            let newTx = {
-                id: Date.now(),
-                month: month,
-                year: year,
-                type: type,
-                students: null
-            };
+            const dataQuery = collection(db, 'artifacts', appId, 'public', 'data', 'documents');
+            
+            onSnapshot(dataQuery, (snapshot) => {
+                allData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderTab();
+                document.getElementById('loading-screen').classList.add('hidden');
+                lucide.createIcons();
+            }, (error) => {
+                console.error("Detail kesalahan snapshot:", error);
+                if (error.code === 'permission-denied') {
+                    showToast("Izin akses cloud ditolak.", "error");
+                } else {
+                    showToast("Gagal memuat data dari cloud", "error");
+                }
+            });
+        };
 
-            if (type === 'masuk') {
-                newTx.source = document.getElementById('gudepName').value;
-                newTx.category = "Iuran";
-                newTx.desc = document.getElementById('incomeDesc').value;
-                newTx.amount = parseFloat(document.getElementById('incomeAmount').value);
-                newTx.students = parseInt(document.getElementById('studentCount').value) || 0;
+        // --- FUNGSI GLOBAL ---
+        window.switchTab = (tabId) => {
+            currentTab = tabId;
+            document.querySelectorAll('.nav-link').forEach(el => {
+                const isActive = el.dataset.tab === tabId;
+                el.classList.toggle('bg-blue-600', isActive);
+                el.classList.toggle('text-white', isActive);
+                el.classList.toggle('text-slate-400', !isActive);
+            });
+            renderTab();
+        };
+
+        const renderTab = () => {
+            const isDashboard = currentTab === 'dashboard';
+            document.getElementById('section-dashboard').classList.toggle('hidden', !isDashboard);
+            document.getElementById('section-table').classList.toggle('hidden', isDashboard);
+            
+            if (isDashboard) renderDashboard();
+            else renderTable();
+            lucide.createIcons();
+        };
+
+        const renderDashboard = () => {
+            document.getElementById('page-title').innerText = 'Dashboard Cloud';
+            const stats = [['surat-masuk', 'blue'], ['surat-keluar', 'emerald'], ['sk', 'purple'], ['notulen', 'amber']];
+            
+            document.getElementById('stats-container').innerHTML = stats.map(([key, col]) => {
+                const count = allData.filter(d => d.category === key).length;
+                return `
+                <div class="bg-white p-6 rounded-2xl border border-slate-100 flex items-center gap-5 cursor-pointer hover:shadow-lg transition-all" onclick="switchTab('${key}')">
+                    <div class="text-${col}-600 bg-${col}-50 w-14 h-14 rounded-2xl flex items-center justify-center">
+                        <i data-lucide="${config[key].icon}" class="w-7 h-7"></i>
+                    </div>
+                    <div><h3 class="text-slate-500 text-xs font-bold uppercase">${config[key].title}</h3><p class="text-3xl font-extrabold">${count}</p></div>
+                </div>`;
+            }).join('');
+
+            const recentBody = document.getElementById('dashboard-recent-body');
+            const sorted = [...allData].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 8);
+            
+            if (sorted.length === 0) {
+                recentBody.innerHTML = '<tr><td colspan="4" class="p-12 text-center text-slate-400 italic">Database cloud masih kosong.</td></tr>';
             } else {
-                newTx.source = "Kas Kwarran";
-                newTx.category = document.getElementById('expenseCat').value;
-                newTx.desc = document.getElementById('expenseDesc').value;
-                newTx.amount = parseFloat(document.getElementById('expenseAmount').value);
+                recentBody.innerHTML = sorted.map(item => `
+                    <tr class="hover:bg-slate-50 border-b border-slate-50 transition-colors">
+                        <td class="px-6 py-4 font-bold text-sm text-slate-700 truncate max-w-[200px]">${item.perihal || item.tentang || item.agenda || 'Tanpa Judul'}</td>
+                        <td class="px-6 py-4"><span class="text-[10px] font-bold px-2 py-1 rounded bg-${config[item.category].color}-50 text-${config[item.category].color}-600 uppercase">${config[item.category].title}</span></td>
+                        <td class="px-6 py-4 text-xs text-slate-500">${item.tgl_terima || item.tgl_surat || item.tanggal || '-'}</td>
+                        <td class="px-6 py-4 text-right"><button onclick="viewDetailFromID('${item.id}')" class="text-blue-600 font-bold text-xs hover:underline">Lihat</button></td>
+                    </tr>`).join('');
             }
+        };
 
-            transactions.push(newTx);
-            saveData();
-            e.target.reset();
-            initSelects(); // Reset dropdowns to current
-            updateLaporan();
-            updateDashboard();
+        const renderTable = () => {
+            document.getElementById('page-title').innerText = config[currentTab].title;
+            const head = document.getElementById('table-headers');
+            head.innerHTML = `<tr class="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-left">${config[currentTab].headers.map(h => `<th class="px-6 py-4">${h}</th>`).join('')}</tr>`;
             
-            const alertBox = document.getElementById('modalAlert');
-            alertBox.classList.remove('hidden');
-            setTimeout(() => alertBox.classList.add('hidden'), 2000);
-        }
-
-        function deleteTx(id) {
-            if(confirm('Hapus data?')) {
-                transactions = transactions.filter(t => t.id !== id);
-                saveData();
-                updateLaporan();
-                updateDashboard();
-            }
-        }
-
-        function saveData() { localStorage.setItem('kwarran_pule_v6_tx', JSON.stringify(transactions)); }
-
-        function formatIDR(num) {
-            return new Intl.NumberFormat('id-ID', { 
-                style: 'currency', 
-                currency: 'IDR', 
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2 
-            }).format(num).replace("Rp", "Rp.");
-        }
-
-        function updateDashboard() {
-            const totalMasuk = transactions.filter(t => t.type === 'masuk').reduce((acc, curr) => acc + curr.amount, 0);
-            const totalKeluar = transactions.filter(t => t.type === 'keluar').reduce((acc, curr) => acc + curr.amount, 0);
-            document.getElementById('dashTotalMasuk').innerText = formatIDR(totalMasuk);
-            document.getElementById('dashTotalKeluar').innerText = formatIDR(totalKeluar);
-            document.getElementById('dashTotalSaldo').innerText = formatIDR(totalMasuk - totalKeluar);
-        }
-
-        function updateLaporan() {
-            const selectedYear = parseInt(document.getElementById('yearFilter').value);
-            const tableBody = document.getElementById('tableBody');
-            tableBody.innerHTML = '';
-
-            let runningSaldo = 0;
-            const filtered = transactions
-                .filter(t => t.year === selectedYear)
-                .sort((a, b) => a.month - b.month || a.id - b.id);
-
-            if (filtered.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="8" class="p-10 text-center text-gray-300 italic">Data kosong</td></tr>`;
+            const categoryData = allData.filter(d => d.category === currentTab).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+            const body = document.getElementById('table-body');
+            
+            if (categoryData.length === 0) {
+                body.innerHTML = `<tr><td colspan="${config[currentTab].headers.length}" class="p-12 text-center text-slate-400 italic text-sm">Tidak ada data di kategori ini.</td></tr>`;
                 return;
             }
 
-            filtered.forEach(t => {
-                if (t.type === 'masuk') runningSaldo += t.amount;
-                else runningSaldo -= t.amount;
+            body.innerHTML = categoryData.map(item => {
+                let cells = [];
+                if (currentTab === 'surat-masuk') {
+                    const hasFile = item.fileData ? `<div class="text-blue-600"><i data-lucide="file-text" class="w-4 h-4"></i></div>` : `<div class="text-slate-300"><i data-lucide="file-x" class="w-4 h-4"></i></div>`;
+                    cells = [`#${item.no_agenda}`, item.tgl_terima || '-', item.terima_dari, item.perihal, hasFile];
+                }
+                else if (currentTab === 'surat-keluar') cells = [item.tgl_surat, item.no_surat, item.kepada, item.perihal];
+                else if (currentTab === 'sk') cells = [item.no_sk, item.tentang, item.tanggal];
+                else if (currentTab === 'notulen') cells = [item.agenda, item.tanggal, item.pimpinan];
 
-                const row = document.createElement('tr');
-                row.className = "border-b border-gray-50 hover:bg-gray-50/50 transition-colors";
-                row.innerHTML = `
-                    <td class="p-3 font-semibold text-gray-400">${months[t.month].substring(0,3)}</td>
-                    <td class="p-3 font-bold text-gray-700">${t.source}<br><span class="text-[9px] font-normal text-gray-400 uppercase">${t.desc}</span></td>
-                    <td class="p-3 text-center text-gray-500 font-bold">${t.students || '-'}</td>
-                    <td class="p-3"><span class="text-[8px] font-bold uppercase bg-gray-100 px-2 py-0.5 rounded text-gray-400">${t.category}</span></td>
-                    <td class="p-3 text-right text-green-600 font-bold">${t.type === 'masuk' ? formatIDR(t.amount) : '-'}</td>
-                    <td class="p-3 text-right text-red-600 font-bold">${t.type === 'keluar' ? formatIDR(t.amount) : '-'}</td>
-                    <td class="p-3 text-right font-black text-gray-800 bg-gray-50/30">${formatIDR(runningSaldo)}</td>
-                    <td class="p-3 text-center">
-                        <button onclick="deleteTx(${t.id})" class="text-gray-300 hover:text-red-500"><i class="fas fa-times-circle"></i></button>
+                return `<tr class="hover:bg-slate-50 transition-colors group">
+                    ${cells.map(c => `<td class="px-6 py-4 text-sm text-slate-600">${c || '-'}</td>`).join('')}
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex gap-2">
+                            <button onclick="viewDetailFromID('${item.id}')" class="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all" title="Lihat"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                            <button onclick="editDataFromID('${item.id}')" class="p-1.5 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-all" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                            <button onclick="deleteDataFromID('${item.id}')" class="p-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-all" title="Hapus"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
                     </td>
-                `;
-                tableBody.appendChild(row);
+                </tr>`;
+            }).join('');
+            lucide.createIcons();
+        };
+
+        window.openModal = () => {
+            document.getElementById('form-modal').classList.add('modal-active');
+            document.getElementById('modal-title').innerText = 'Tambah ' + config[currentTab].title;
+            document.getElementById('form-edit-id').value = '';
+            document.getElementById('doc-form').reset();
+            document.getElementById('dynamic-form-fields').innerHTML = config[currentTab].fields.map(f => `
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">${f.label}</label>
+                    ${f.type === 'textarea' ? `<textarea name="${f.name}" class="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" rows="3"></textarea>` : `<input type="${f.type}" name="${f.name}" class="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all">`}
+                </div>`).join('');
+        };
+
+        window.closeModal = () => document.getElementById('form-modal').classList.remove('modal-active');
+
+        window.handleSave = async () => {
+            if (!currentUser) return showToast("Sesi cloud tidak aktif", "error");
+            
+            const btn = document.getElementById('btn-save');
+            const fileInput = document.getElementById('file-upload');
+            const editId = document.getElementById('form-edit-id').value;
+            const form = document.getElementById('doc-form');
+            const formData = new FormData(form);
+            
+            const entry = { 
+                category: currentTab, 
+                timestamp: new Date().toISOString(),
+                last_updated: new Date().toISOString(),
+                creator_uid: currentUser.uid 
+            };
+            
+            config[currentTab].fields.forEach(f => {
+                entry[f.name] = formData.get(f.name);
             });
-        }
 
-        function downloadExcel() {
-            const selectedYear = document.getElementById('yearFilter').value;
-            const data = transactions.filter(t => t.year == selectedYear).map(t => ({
-                'Bulan': months[t.month], 'Sumber': t.source, 'Siswa': t.students || 0, 'Ket': t.desc, 'Masuk': t.type === 'masuk' ? t.amount : 0, 'Keluar': t.type === 'keluar' ? t.amount : 0
-            }));
-            const ws = XLSX.utils.json_to_sheet(data);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, ws, "Keu");
-            XLSX.writeFile(workbook, `Laporan_${selectedYear}.xlsx`);
-        }
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Proses...'; lucide.createIcons();
 
-        window.onload = () => { initSelects(); updateDashboard(); };
+            try {
+                if (fileInput.files[0]) {
+                    const file = fileInput.files[0];
+                    if (file.size > 800000) throw new Error("File terlalu besar (Maks 800KB)");
+                    entry.fileData = await toBase64(file);
+                    entry.fileType = file.type;
+                } else if (editId) {
+                    // Simpan file lama jika sedang mengedit dan tidak ada file baru
+                    const oldItem = allData.find(d => d.id === editId);
+                    if (oldItem && oldItem.fileData) {
+                        entry.fileData = oldItem.fileData;
+                        entry.fileType = oldItem.fileType;
+                    }
+                }
+
+                if (editId) {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'documents', editId);
+                    await updateDoc(docRef, entry);
+                } else {
+                    const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'documents');
+                    await addDoc(colRef, entry);
+                }
+
+                closeModal();
+                showToast(editId ? "Data Diperbarui" : "Tersimpan Permanen");
+            } catch (err) {
+                console.error("Kesalahan Simpan:", err);
+                showToast(err.message || "Gagal menyimpan", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>Simpan Permanen</span>'; lucide.createIcons();
+            }
+        };
+
+        window.editDataFromID = (id) => {
+            const item = allData.find(d => d.id === id);
+            if (!item) return;
+            openModal();
+            document.getElementById('modal-title').innerText = 'Edit Data Cloud';
+            document.getElementById('form-edit-id').value = id;
+            const form = document.getElementById('doc-form');
+            config[item.category].fields.forEach(f => {
+                if (form.elements[f.name]) form.elements[f.name].value = item[f.name] || '';
+            });
+        };
+
+        window.deleteDataFromID = async (id) => {
+            if (confirm("Hapus data permanen dari cloud?")) {
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'documents', id));
+                    showToast("Data dihapus");
+                } catch (err) { showToast("Gagal menghapus", "error"); }
+            }
+        };
+
+        window.viewDetailFromID = (id) => {
+            const item = allData.find(d => d.id === id);
+            if (!item) return;
+            const content = document.getElementById('detail-content');
+            
+            if (item.category === 'surat-masuk') {
+                content.innerHTML = `
+                    <div class="border-[3px] border-black p-8 bg-white text-black font-serif">
+                        <h3 class="text-center font-black text-2xl underline mb-6">LEMBAR DISPOSISI CLOUD</h3>
+                        <table class="disposisi-table">
+                            <tr><td><strong>No. Agenda:</strong><br><span class="text-xl font-black">#${item.no_agenda || '-'}</span></td><td><strong>Tgl. Terima:</strong><br>${item.tgl_terima || '-'}</td><td><p class="text-[9px] italic">Arsip Cloud Permanen</p></td></tr>
+                            <tr><td><strong>Asal Surat:</strong></td><td colspan="2" class="uppercase font-bold">${item.terima_dari || '-'}</td></tr>
+                            <tr><td><strong>No. Surat:</strong></td><td colspan="2">${item.no_surat || '-'}</td></tr>
+                            <tr><td colspan="3" class="bg-slate-50"><p class="text-sm font-bold italic">${item.perihal || '-'}</p></td></tr>
+                            <tr><td class="min-h-[200px]"><p class="text-[10px] font-bold underline">Diteruskan Ke:</p><p class="mt-4 text-xs font-bold uppercase">${item.ditujukan || '-'}</p></td><td colspan="2" class="p-6">
+                                <p class="text-[10px] font-bold underline">Instruksi Disposisi:</p><div class="italic text-base min-h-[150px] whitespace-pre-line">${item.disposisi || ''}</div>
+                            </td></tr>
+                        </table>
+                        ${renderAttachment(item)}
+                    </div>`;
+            } else {
+                content.innerHTML = `
+                    <div class="p-12 bg-white">
+                        <div class="flex justify-between items-start mb-8 border-b-2 border-slate-800 pb-4">
+                            <div><h2 class="text-3xl font-black uppercase text-slate-800">${config[item.category].title}</h2><p class="text-slate-500 text-sm">Arsip Cloud Permanen</p></div>
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/e/e0/Logo_Ikatan_Bidan_Indonesia.png" class="h-16">
+                        </div>
+                        <div class="grid grid-cols-2 gap-8">
+                            ${config[item.category].fields.map(f => `<div><label class="text-[10px] font-bold text-slate-400 uppercase">${f.label}</label><p class="text-lg font-bold text-slate-800 border-b border-slate-100 whitespace-pre-line">${item[f.name] || '-'}</p></div>`).join('')}
+                        </div>
+                        ${renderAttachment(item)}
+                    </div>`;
+            }
+            document.getElementById('detail-modal').classList.add('modal-active');
+            lucide.createIcons();
+        };
+
+        window.closeDetailModal = () => document.getElementById('detail-modal').classList.remove('modal-active');
+
+        const renderAttachment = (item) => {
+            if (!item.fileData) return '';
+            return `<div class="mt-8 no-print border-t pt-6">
+                <h4 class="text-xs font-bold uppercase mb-4 text-blue-600 flex items-center gap-2"><i data-lucide="paperclip" class="w-4 h-4"></i> Lampiran Cloud</h4>
+                <div class="p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
+                    ${item.fileType?.startsWith('image/') ? `<img src="${item.fileData}" class="max-w-full rounded-xl border">` : `<div class="p-6 bg-white rounded-xl border flex justify-between items-center"><p class="font-bold">File PDF Tersimpan</p><a href="${item.fileData}" download="cloud-archive" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Unduh PDF</a></div>`}
+                </div>
+            </div>`;
+        };
+
+        const toBase64 = file => new Promise((resolve, reject) => {
+            const reader = new FileReader(); reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result); reader.onerror = reject;
+        });
+
+        const showToast = (msg, type = 'success') => {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            document.getElementById('toast-msg').innerText = msg;
+            icon.className = `p-1 rounded-full ${type === 'success' ? 'bg-emerald-500' : 'bg-red-500'}`;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.classList.add('hidden'), 300); }, 3000);
+        };
+
+        document.getElementById('current-date').innerText = new Intl.DateTimeFormat('id-ID', { dateStyle: 'full' }).format(new Date());
+        initApp();
     </script>
 </body>
 </html>
