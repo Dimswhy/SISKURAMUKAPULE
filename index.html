@@ -46,15 +46,15 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
                     <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Saldo Kas</p>
-                    <h3 id="dashTotalSaldo" class="text-2xl font-black text-gray-800 mt-1">Rp 0</h3>
+                    <h3 id="dashTotalSaldo" class="text-2xl font-black text-gray-800 mt-1">Rp 0,00</h3>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 border-l-4 border-l-green-500">
                     <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Masuk</p>
-                    <h3 id="dashTotalMasuk" class="text-2xl font-black text-green-600 mt-1">Rp 0</h3>
+                    <h3 id="dashTotalMasuk" class="text-2xl font-black text-green-600 mt-1">Rp 0,00</h3>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 border-l-4 border-l-red-500">
                     <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Keluar</p>
-                    <h3 id="dashTotalKeluar" class="text-2xl font-black text-red-600 mt-1">Rp 0</h3>
+                    <h3 id="dashTotalKeluar" class="text-2xl font-black text-red-600 mt-1">Rp 0,00</h3>
                 </div>
             </div>
         </div>
@@ -266,7 +266,12 @@
         function saveData() { localStorage.setItem('kwarran_pule_v6_tx', JSON.stringify(transactions)); }
 
         function formatIDR(num) {
-            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
+            return new Intl.NumberFormat('id-ID', { 
+                style: 'currency', 
+                currency: 'IDR', 
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2 
+            }).format(num).replace("Rp", "Rp.");
         }
 
         function updateDashboard() {
@@ -320,9 +325,9 @@
                 'Bulan': months[t.month], 'Sumber': t.source, 'Siswa': t.students || 0, 'Ket': t.desc, 'Masuk': t.type === 'masuk' ? t.amount : 0, 'Keluar': t.type === 'keluar' ? t.amount : 0
             }));
             const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Keu");
-            XLSX.writeFile(wb, `Laporan_${selectedYear}.xlsx`);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, ws, "Keu");
+            XLSX.writeFile(workbook, `Laporan_${selectedYear}.xlsx`);
         }
 
         window.onload = () => { initSelects(); updateDashboard(); };
